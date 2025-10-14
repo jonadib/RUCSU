@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Election Panel Builder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .candidate-card {
+            cursor: grab;
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        .candidate-card:active {
+            cursor: grabbing;
+            transform: scale(1.05);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        .panel-slot {
+            transition: background-color 0.2s ease, border-color 0.2s ease;
+        }
+        .panel-slot.drag-over {
+            background-color: rgba(55, 65, 81, 0.5); 
+            border-color: #38bdf8;
+        }
+        /* Custom scrollbar for dark theme */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1f2937;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #6b7280;
+        }
+        /* Shake animation for incorrect drop */
+        @keyframes shake {
+          10%, 90% { transform: translate3d(-1px, 0, 0); }
+          20%, 80% { transform: translate3d(2px, 0, 0); }
+          30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+          40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+        .shake {
+          animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-gray-900 to-indigo-900 text-slate-300">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <!-- Header -->
+        <header class="text-center mb-8">
+            <div class="flex justify-center items-center gap-4">
+                <img src="https://i.pinimg.com/1200x/c5/ac/f1/c5acf1f93a2a1e9f43956d0db1308c8c.jpg" alt="Logo" class="h-12 w-12 rounded-full">
+                <h1 class="text-3xl md:text-4xl font-bold text-white">RUCSU</h1>
+            </div>
+            <p class="text-slate-400 mt-2">Select candidates to build your perfect panel.</p>
+        </header>
+
+        <!-- Main Content: Candidates and Panel -->
+        <main class="flex flex-col lg:flex-row gap-8">
+            <!-- Left Side: Available Candidates -->
+            <div class="w-full lg:w-1/3 bg-gray-800 bg-opacity-70 rounded-xl shadow-lg p-6 flex flex-col border border-gray-700 backdrop-blur-sm">
+                <h2 class="text-2xl font-semibold mb-4 text-white">Available Candidates</h2>
+                <div class="relative mb-4">
+                    <input type="text" id="searchInput" placeholder="Search by name or post..." class="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-sky-500 focus:border-sky-500 outline-none transition">
+                    <svg class="w-5 h-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                    </svg>
+                </div>
+                <div id="candidatesList" class="flex-grow overflow-y-auto pr-2" style="max-height: 70vh;">
+                    <!-- Candidate cards will be dynamically inserted here -->
+                </div>
+            </div>
+
+            <!-- Right Side: Your Panel -->
+            <div class="w-full lg:w-2/3 bg-gray-800 bg-opacity-70 rounded-xl shadow-lg p-6 border border-gray-700 backdrop-blur-sm">
+                <div class="flex justify-between items-center mb-6 flex-wrap gap-2">
+                    <h2 class="text-2xl font-semibold text-white">Your Panel</h2>
+                    <div id="panelCounter" class="text-lg font-medium bg-sky-500 bg-opacity-20 text-sky-300 px-4 py-1 rounded-full">0 / 28 Selected</div>
+                </div>
+                <div id="panelGrid" class="overflow-y-auto pr-2" style="max-height: 65vh;">
+                    <!-- Panel slots will be dynamically inserted here -->
+                </div>
+                 <div class="mt-6 flex flex-col sm:flex-row justify-end gap-4">
+                    <button id="resetButton" class="px-6 py-2 bg-gray-600 text-white font-semibold rounded-lg hover:bg-gray-500 transition shadow-sm">Reset Panel</button>
+                    <button id="downloadImageButton" class="px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold rounded-lg hover:opacity-90 transition shadow-lg">Download Image</button>
+                </div>
+            </div>
+        </main>
+        
+        <footer class="text-center mt-8 text-slate-500">
+            <p>© 2025 All rights reserved Adib Studio</p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- CONFIGURATION ---
+            const PANEL_SIZE = 28;
+            const panelSlotsConfig = [
+                { post: 'সহ-সভাপতি (ভিপি)' }, { post: 'সাধারণ সম্পাদক (জিএস)' }, { post: 'সহ-সাধারণ সম্পাদক (এজিএস)' },
+                { post: 'সম্পাদক, ক্রীড়া ও খেলাধুলা' }, { post: 'সহকারী সম্পাদক, ক্রীড়া ও খেলাধুলা' }, { post: 'সম্পাদক, সংস্কৃতি বিষয়ক' },
+                { post: 'সহকারী সম্পাদক, সংস্কৃতি বিষয়ক' }, { post: 'সম্পাদক, মহিলা বিষয়ক' }, { post: 'সহকারী সম্পাদক, মহিলা বিষয়ক' },
+                { post: 'সম্পাদক, তথ্য ও গবেষণা' }, { post: 'সহকারী সম্পাদক, তথ্য ও গবেষণা' }, { post: 'সম্পাদক, মিডিয়া ও প্রকাশনা' },
+                { post: 'সহকারী সম্পাদক, মিডিয়া ও প্রকাশনা' }, { post: 'সম্পাদক, বিজ্ঞান ও প্রযুক্তি' }, { post: 'সহকারী সম্পাদক, বিজ্ঞান ও প্রযুক্তি' },
+                { post: 'সম্পাদক, বিতর্ক ও সাহিত্য বিষয়ক' }, { post: 'সহকারী সম্পাদক, বিতর্ক ও সাহিত্য বিষয়ক' }, { post: 'সম্পাদক, পরিবেশ ও সমাজকল্যাণ' },
+                { post: 'সহকারী সম্পাদক, পরিবেশ ও সমাজকল্যাণ' },
+                { post: 'নির্বাহী সদস্য' }, { post: 'নির্বাহী সদস্য' }, { post: 'নির্বাহী সদস্য' }, { post: 'নির্বাহী সদস্য' },
+                { post: 'সিনেট' }, { post: 'সিনেট' }, { post: 'সিনেট' }, { post: 'সিনেট' }, { post: 'সিনেট' },
+            ];
+
+            // --- DOM ELEMENTS ---
+            const candidatesList = document.getElementById('candidatesList');
+            const panelGrid = document.getElementById('panelGrid');
+            const searchInput = document.getElementById('searchInput');
+            const panelCounter = document.getElementById('panelCounter');
+            const resetButton = document.getElementById('resetButton');
+            const downloadImageButton = document.getElementById('downloadImageButton');
+            
+            // --- STATE MANAGEMENT ---
+            let allCandidates = [];
+            let panel = Array(PANEL_SIZE).fill(null);
+            
+            // --- INITIALIZATION ---
+            function initializeApp() {
+                generateCandidates();
+                renderPanelSlots();
+                renderCandidates();
+                updatePanelCounter();
+            }
+
+            // --- DATA GENERATION ---
+            function generateCandidates() {
+                const candidatesData = [
+                    // সহ-সভাপতি (ভিপি)
+                    { name: 'সাগর আহমেদ মিয়া', post: 'সহ-সভাপতি (ভিপি)', ballot: 1 }, { name: 'মো. আঃ  নূর', post: 'সহ-সভাপতি (ভিপি)', ballot: 2 }, { name: 'অদ্রীব নাহা উৎস', post: 'সহ-সভাপতি (ভিপি)', ballot: 3 }, { name: 'মোস্তাকুর রহমান (জাহিদ)', post: 'সহ-সভাপতি (ভিপি)', ballot: 4 }, { name: 'শেখ নূর উদ্দীন আবীর', post: 'সহ-সভাপতি (ভিপি)', ballot: 5 }, { name: 'ফুয়াদ রাতুল', post: 'সহ-সভাপতি (ভিপি)', ballot: 6 }, { name: 'তাসিন খান', post: 'সহ-সভাপতি (ভিপি)', ballot: 7 }, { name: 'নোমান ইমতিয়াজ', post: 'সহ-সভাপতি (ভিপি)', ballot: 8 }, { name: 'মাসুদ কিবরিয়া', post: 'সহ-সভাপতি (ভিপি)', ballot: 9 }, { name: 'মো. আব্দুল বারিক', post: 'সহ-সভাপতি (ভিপি)', ballot: 10 }, { name: 'মেহেদী মারুফ', post: 'সহ-সভাপতি (ভিপি)', ballot: 11 }, { name: 'তাওহীদুল ইসলাম', post: 'সহ-সভাপতি (ভিপি)', ballot: 12 }, { name: 'মো. মেহেদী হাসান সুমন', post: 'সহ-সভাপতি (ভিপি)', ballot: 13 }, { name: 'মাহবুব আলম', post: 'সহ-সভাপতি (ভিপি)', ballot: 14 }, { name: 'মেহেদী সজীব', post: 'সহ-সভাপতি (ভিপি)', ballot: 15 }, { name: 'শাকিল মিয়া', post: 'সহ-সভাপতি (ভিপি)', ballot: 16 }, { name: 'মো. বিল্লাল হোসেন', post: 'সহ-সভাপতি (ভিপি)', ballot: 17 }, { name: 'মুহিব', post: 'সহ-সভাপতি (ভিপি)', ballot: 18 },
+                    // সাধারণ সম্পাদক (জিএস)
+                    { name: 'সাদ মোহাম্মদ', post: 'সাধারণ সম্পাদক (জিএস)', ballot: 1 }, { name: 'নুসরাত জাহান নুপুর', post: 'সাধারণ সম্পাদক (জিএস)', ballot: 2 }, { name: 'আছিয়া খাতুন', post: 'সাধারণ সম্পাদক (জিএস)', ballot: 3 }, { name: 'মো. কাওসার আহমেদ', post: 'সাধারণ সম্পাদক (জিএস)', ballot: 4 }, { name: 'পরমা পারমিতা', post: 'সাধারণ সম্পাদক (জিএস)', ballot: 5 }, { name: 'মো. হাবিবুর রহমান', post: 'সাধারণ সম্পাদক (জিএস)', ballot: 6 }, { name: 'নাফিউল ইসলাম (জীবন)', post: 'সাধারণ সম্পাদক (জিএস)', ballot: 7 }, { name: 'মো. শরিফুল ইসলাম শরীফ', post: 'সাধারণ সম্পাদক (জিএস)', ballot: 8 }, { name: 'সালাউদ্দিন আম্মার', post: 'সাধারণ সম্পাদক (জিএস)', ballot: 9 }, { name: 'ফাহিম রেজা', post: 'সাধারণ সম্পাদক (জিএস)', ballot: 10 }, { name: 'রাজন আহমেদ', post: 'সাধারণ সম্পাদক (জিএস)', ballot: 11 }, { name: 'মো. আব্দুল মুকিত', post: 'সাধারণ সম্পাদক (জিএস)', ballot: 12 }, { name: 'আফরิน জাহান', post: 'সাধারণ সম্পাদক (জিএস)', ballot: 13 },
+                    // সহ-সাধারণ সম্পাদক (এজিএস)
+                    { name: 'জান্নাত আরা নওশিন', post: 'সহ-সাধারণ সম্পাদক (এজিএস)', ballot: 1 }, { name: 'মো. পারভেজ আকন্দ', post: 'সহ-সাধারণ সম্পাদক (এজিএস)', ballot: 2 }, { name: 'সানজিদ', post: 'সহ-সাধারণ সম্পাদক (এজিএস)', ballot: 3 }, { name: 'মো. ফজল রাব্বি', post: 'সহ-সাধারণ সম্পাদক (এজিএস)', ballot: 4 }, { name: 'জাহিন বিশ্বাস এশা', post: 'সহ-সাধারণ সম্পাদক (এজিএস)', ballot: 5 }, { name: 'মো. নাসিম সরকার', post: 'সহ-সাধারণ সম্পাদক (এজিএস)', ballot: 6 }, { name: 'মো. সাকিব হাসান', post: 'সহ-সাধারণ সম্পাদক (এজিএস)', ballot: 7 }, { name: 'শাহ পরান লিখন', post: 'সহ-সাধারণ সম্পাদক (এজিএস)', ballot: 8 }, { name: 'মো. মেরাজুল ইসলাম', post: 'সহ-সাধারণ সম্পাদক (এজিএস)', ballot: 9 }, { name: 'সুমন চাকমা', post: 'সহ-সাধারণ সম্পাদক (এজিএস)', ballot: 10 }, { name: 'তুর্যউন মাহমুদ তামিল', post: 'সহ-সাধারণ সম্পাদক (এজিএস)', ballot: 11 }, { name: 'মাহাইর ইসলাম', post: 'সহ-সাধারণ সম্পাদক (এজিএস)', ballot: 12 }, { name: 'মো. সাজিবুর রহমান', post: 'সহ-সাধারণ সম্পাদক (এজিএস)', ballot: 13 }, { name: 'আকিল বিন তালেব', post: 'সহ-সাধারণ সম্পাদক (এজিএস)', ballot: 14 }, { name: 'এস. এম. সালমান সাব্বির', post: 'সহ-সাধারণ সম্পাদক (এজিএস)', ballot: 15 }, { name: 'আল-শাহরিয়া শুভ', post: 'সহ-সাধারণ সম্পাদক (এজিএস)', ballot: 16 },
+                    // সম্পাদক, ক্রীড়া ও খেলাধুলা
+                    { name: 'মাসুম বিল্লাহ', post: 'সম্পাদক, ক্রীড়া ও খেলাধুলা', ballot: 1 }, { name: 'মো. জোবায়ের আহমেদ', post: 'সম্পাদক, ক্রীড়া ও খেলাধুলা', ballot: 2 }, { name: 'মো. মেহেদী হাসান পুলক', post: 'সম্পাদক, ক্রীড়া ও খেলাধুলা', ballot: 3 }, { name: 'শীত কুমার উরাং', post: 'সম্পাদক, ক্রীড়া ও খেলাধুলা', ballot: 4 }, { name: 'মো. ইয়াছিন আরাফাত বিজয়', post: 'সম্পাদক, ক্রীড়া ও খেলাধুলা', ballot: 5 }, { name: 'মাহমুদুল হাসান জিহাদ', post: 'সম্পাদক, ক্রীড়া ও খেলাধুলা', ballot: 6 }, { name: 'মো. হামিদুল্লাহ নাঈম', post: 'সম্পাদক, ক্রীড়া ও খেলাধুলা', ballot: 7 }, { name: 'মোসা. নার্গিস খাতুন', post: 'সম্পাদক, ক্রীড়া ও খেলাধুলা', ballot: 8 },
+                    // সহকারী সম্পাদক, ক্রীড়া ও খেলাধুলা
+                    { name: 'মো. শফিউল ইসলাম', post: 'সহকারী সম্পাদক, ক্রীড়া ও খেলাধুলা', ballot: 1 }, { name: 'মো. মঞ্জু আরিফ', post: 'সহকারী সম্পাদক, ক্রীড়া ও খেলাধুলা', ballot: 2 }, { name: 'মো. মাহফুজুর রহমান শাওন', post: 'সহকারী সম্পাদক, ক্রীড়া ও খেলাধুলা', ballot: 3 }, { name: 'মো. শাহরুল ইসলাম', post: 'সহকারী সম্পাদক, ক্রীড়া ও খেলাধুলা', ballot: 4 }, { name: 'মো. রিদওয়ানুল হক ইমন', post: 'সহকারী সম্পাদক, ক্রীড়া ও খেলাধুলা', ballot: 5 }, { name: 'আবু সাঈদ মুহাম্মদ নুন', post: 'সহকারী সম্পাদক, ক্রীড়া ও খেলাধুলা', ballot: 6 },
+                    // সম্পাদক, সংস্কৃতি বিষয়ক
+                    { name: 'কে এস কে রিদয়', post: 'সম্পাদক, সংস্কৃতি বিষয়ক', ballot: 1 }, { name: 'মো: আবিদুল্লাহ আল কাফী', post: 'সম্পাদক, সংস্কৃতি বিষয়ক', ballot: 2 }, { name: 'তারেক আশরাফ', post: 'সম্পাদক, সংস্কৃতি বিষয়ক', ballot: 3 }, { name: 'মো: রাতুল মাহামুদ', post: 'সম্পাদক, সংস্কৃতি বিষয়ক', ballot: 4 }, { name: 'জাহিদ হাসান জোহা', post: 'সম্পাদক, সংস্কৃতি বিষয়ক', ballot: 5 }, { name: 'মো: ইব্রাহীম আলী', post: 'সম্পাদক, সংস্কৃতি বিষয়ক', ballot: 6 }, { name: 'বি.এস. এম আনোয়ার আমজাদ (সজল)', post: 'সম্পাদক, সংস্কৃতি বিষয়ক', ballot: 7 }, { name: 'অমিত তনচংগ্যা', post: 'সম্পাদক, সংস্কৃতি বিষয়ক', ballot: 8 }, { name: 'মো মাহবুব আলম( মোহন)', post: 'সম্পাদক, সংস্কৃতি বিষয়ক', ballot: 9 }, { name: 'মো: রবিউল ইসলাম সিকদার', post: 'সম্পাদক, সংস্কৃতি বিষয়ক', ballot: 10 },
+                    // সহকারী সম্পাদক, সংস্কৃতি বিষয়ক
+                    { name: 'হ্লাথোয়ইছা চাক', post: 'সহকারী সম্পাদক, সংস্কৃতি বিষয়ক', ballot: 1 }, { name: 'মো লাদেন', post: 'সহকারী সম্পাদক, সংস্কৃতি বিষয়ক', ballot: 2 }, { name: 'মো কাজিউল ইসলাম কাজল', post: 'সহকারী সম্পাদক, সংস্কৃতি বিষয়ক', ballot: 3 }, { name: 'রেজওয়ান করিম', post: 'সহকারী সম্পাদক, সংস্কৃতি বিষয়ক', ballot: 4 }, { name: 'মো শাহরিয়ার আলম (অথী)', post: 'সহকারী সম্পাদক, সংস্কৃতি বিষয়ক', ballot: 5 }, { name: 'সারাফ আনজুম বিভা', post: 'সহকারী সম্পাদক, সংস্কৃতি বিষয়ক', ballot: 6 }, { name: 'আ ন ম মুবতাসিন ফুয়াদ ধ্রুব', post: 'সহকারী সম্পাদক, সংস্কৃতি বিষয়ক', ballot: 7 }, { name: 'মিঠু চন্দ্র বর্মন', post: 'সহকারী সম্পাদক, সংস্কৃতি বিষয়ক', ballot: 8 }, { name: 'মো রাকিবুল ইসলাম', post: 'সহকারী সম্পাদক, সংস্কৃতি বিষয়ক', ballot: 9 },
+                    // সম্পাদক, মহিলা বিষয়ক
+                    { name: 'সামসাদ জাহান', post: 'সম্পাদক, মহিলা বিষয়ক', ballot: 1 }, { name: 'হেমা আক্তার ইভা', post: 'সম্পাদক, মহিলা বিষয়ক', ballot: 2 }, { name: 'সাইয়িদা হাফছা', post: 'সম্পাদক, মহিলা বিষয়ক', ballot: 3 }, { name: 'মোছা. স্বপ্না আক্তার', post: 'সম্পাদক, মহিলা বিষয়ক', ballot: 4 }, { name: 'মোছা. নিশা আক্তার', post: 'সম্পাদক, মহিলা বিষয়ক', ballot: 5 }, { name: 'আবিদা আক্তার লাবনী', post: 'সম্পাদক, মহিলা বিষয়ক', ballot: 6 },
+                    // সহকারী সম্পাদক, মহিলা বিষয়ক
+                    { name: 'ফারহিন শবনম শায়ন্তি', post: 'সহকারী সম্পাদক, মহিলা বিষয়ক', ballot: 1 }, { name: 'সামিয়া জাহান', post: 'সহকারী সম্পাদক, মহিলা বিষয়ক', ballot: 2 }, { name: 'জান্নাত', post: 'সহকারী সম্পাদক, মহিলা বিষয়ক', ballot: 3 }, { name: 'নূসরাত ঈষিতা', post: 'সহকারী সম্পাদক, মহিলা বিষয়ক', ballot: 4 }, { name: 'হাসনা হেনা বর্ষা', post: 'সহকারী সম্পাদক, মহিলা বিষয়ক', ballot: 5 }, { name: 'শ্রেয়সী রায়', post: 'সহকারী সম্পাদক, মহিলা বিষয়ক', ballot: 6 }, { name: 'নাদিয়া হক', post: 'সহকারী সম্পাদক, মহিলা বিষয়ক', ballot: 7 }, { name: 'নুসরাত জাহান অহনা', post: 'সহকারী সম্পাদক, মহিলা বিষয়ক', ballot: 8 },
+                    // সম্পাদক, তথ্য ও গবেষণা
+                    { name: 'ইনসান আলী', post: 'সম্পাদক, তথ্য ও গবেষণা', ballot: 1 }, { name: 'মোহাম্মদ মিনহাজুর রহমান', post: 'সম্পাদক, তথ্য ও গবেষণা', ballot: 2 }, { name: 'মোঃ মাহবুব আলম', post: 'সম্পাদক, তথ্য ও গবেষণা', ballot: 3 }, { name: 'বি. এম. নাজমুছ সাকিব', post: 'সম্পাদক, তথ্য ও গবেষণা', ballot: 4 }, { name: 'মোঃ মেহেদী হাসান হৃদয়', post: 'সম্পাদক, তথ্য ও গবেষণা', ballot: 5 }, { name: 'মো. রিমন ভূইয়া', post: 'সম্পাদক, তথ্য ও গবেষণা', ballot: 6 }, { name: 'মোঃ সারওয়ার জাহান', post: 'সম্পাদক, তথ্য ও গবেষণা', ballot: 7 }, { name: 'মোঃ হাসান শাহরিয়ার খন্দকার আলিফ', post: 'সম্পাদক, তথ্য ও গবেষণা', ballot: 8 }, { name: 'মোহাম্মদ ইফতেখার আলম ধ্রুব', post: 'সম্পাদক, তথ্য ও গবেষণা', ballot: 9 }, { name: 'গাজী ফেরদৌস হাসান', post: 'সম্পাদক, তথ্য ও গবেষণা', ballot: 10 }, { name: 'মোঃ মনিরুজ্জামান', post: 'সম্পাদক, তথ্য ও গবেষণা', ballot: 11 }, { name: 'মোঃ মনারুল ইসলাম বুলেট', post: 'সম্পাদক, তথ্য ও গবেষণা', ballot: 12 }, { name: 'মোঃ আবুল কালাম আজাদ', post: 'সম্পাদক, তথ্য ও গবেষণা', ballot: 13 },
+                    // সহকারী সম্পাদক, তথ্য ও গবেষণা
+                    { name: 'মোঃ সজীব আলী', post: 'সহকারী সম্পাদক, তথ্য ও গবেষণা', ballot: 1 }, { name: 'মোঃ রেদওয়ান ইসলাম রিদয়', post: 'সহকারী সম্পাদক, তথ্য ও গবেষণা', ballot: 2 }, { name: 'গাজী ফারহান লাবিব', post: 'সহকারী সম্পাদক, তথ্য ও গবেষণা', ballot: 3 }, { name: 'মো. নাবিল বিন জাকির', post: 'সহকারী সম্পাদক, তথ্য ও গবেষণা', ballot: 4 }, { name: 'সিফাত আবু সালেহ', post: 'সহকারী সম্পাদক, তথ্য ও গবেষণা', ballot: 5 }, { name: 'নিয়ামুল নাজিম নিয়াম', post: 'সহকারী সম্পাদক, তথ্য ও গবেষণা', ballot: 6 }, { name: 'জাহেদুল হক চৌধুরী', post: 'সহকারী সম্পাদক, তথ্য ও গবেষণা', ballot: 7 }, { name: 'মোঃ ইমন হাওলাদার (অনুরাগ)', post: 'সহকারী সম্পাদক, তথ্য ও গবেষণা', ballot: 8 },
+                    // সম্পাদক, মিডিয়া ও প্রকাশনা
+                    { name: 'মোঃ রায়হান ইসলাম', post: 'সম্পাদক, মিডিয়া ও প্রকাশনা', ballot: 1 }, { name: 'রাফায়েতুল আহম্মেদ (রাবিত)', post: 'সম্পাদক, মিডিয়া ও প্রকাশনা', ballot: 2 }, { name: 'মোঃ মুজাহিদ ইসলাম', post: 'সম্পাদক, মিডিয়া ও প্রকাশনা', ballot: 3 }, { name: 'মোঃ ফাহির আমিন', post: 'সম্পাদক, মিডিয়া ও প্রকাশনা', ballot: 4 }, { name: 'মোঃ শাহরিয়ার জামান রিজন', post: 'সম্পাদক, মিডিয়া ও প্রকাশনা', ballot: 5 }, { name: 'মোঃ ইকরামুল হাসান ফাহিম', post: 'সম্পাদক, মিডিয়া ও প্রকাশনা', ballot: 6 }, { name: 'মীর কাদির', post: 'সম্পাদক, মিডিয়া ও প্রকাশনা', ballot: 7 }, { name: 'শাহরিয়ার মোর্শেদ খান', post: 'সম্পাদক, মিডিয়া ও প্রকাশনা', ballot: 8 }, { name: 'মোঃ সাবিত হোসাইন', post: 'সম্পাদক, মিডিয়া ও প্রকাশনা', ballot: 9 },
+                    // সহকারী সম্পাদক, মিডিয়া ও প্রকাশনা
+                    { name: 'মোঃ নূর নবী', post: 'সহকারী সম্পাদক, মিডিয়া ও প্রকাশনা', ballot: 1 }, { name: 'এম শামীম', post: 'সহকারী সম্পাদক, মিডিয়া ও প্রকাশনা', ballot: 2 }, { name: 'তালহা হোসাইন', post: 'সহকারী সম্পাদক, মিডিয়া ও প্রকাশনা', ballot: 3 }, { name: 'মোঃ মাহমুদুল হাসান', post: 'সহকারী সম্পাদক, মিডিয়া ও প্রকাশনা', ballot: 4 }, { name: 'মোঃ মাহফুজ', post: 'সহকারী সম্পাদক, মিডিয়া ও প্রকাশনা', ballot: 5 }, { name: 'ফাহিম মুনতাসির রাফিন', post: 'সহকারী সম্পাদক, মিডিয়া ও প্রকাশনা', ballot: 6 }, { name: 'ওয়াসিমুল আহমেদ হিমেল', post: 'সহকারী সম্পাদক, মিডিয়া ও প্রকাশনা', ballot: 7 }, { name: 'মুনান হাওলাদার', post: 'সহকারী সম্পাদক, মিডিয়া ও প্রকাশনা', ballot: 8 }, { name: 'আসাদুল্লাহ্', post: 'সহকারী সম্পাদক, মিডিয়া ও প্রকাশনা', ballot: 9 },
+                    // সম্পাদক, বিজ্ঞান ও প্রযুক্তি
+                    { name: 'মোঃ জাহিদুল হাসান', post: 'সম্পাদক, বিজ্ঞান ও প্রযুক্তি', ballot: 1 }, { name: 'মোঃ হাচান হাওলাদার', post: 'সম্পাদক, বিজ্ঞান ও প্রযুক্তি', ballot: 2 }, { name: 'মুনতাসির তাসিন', post: 'সম্পাদক, বিজ্ঞান ও প্রযুক্তি', ballot: 3 }, { name: 'ডা. মোঃ জাকির হোসেন', post: 'সম্পাদক, বিজ্ঞান ও প্রযুক্তি', ballot: 4 }, { name: 'মোঃ জাকারিয়া রেজা', post: 'সম্পাদক, বিজ্ঞান ও প্রযুক্তি', ballot: 5 }, { name: 'মোঃ মারুফ হোসেন', post: 'সম্পাদক, বিজ্ঞান ও প্রযুক্তি', ballot: 6 }, { name: 'বিজয় কৃষ্ণ দাস', post: 'সম্পাদক, বিজ্ঞান ও প্রযুক্তি', ballot: 7 }, { name: 'তোফায়েল আহমদ তোফা', post: 'সম্পাদক, বিজ্ঞান ও প্রযুক্তি', ballot: 8 }, { name: 'জুহাইম তামিম', post: 'সম্পাদক, বিজ্ঞান ও প্রযুক্তি', ballot: 9 },
+                    // সহকারী সম্পাদক, বিজ্ঞান ও প্রযুক্তি
+                    { name: 'মোঃ রাসেল রানা', post: 'সহকারী সম্পাদক, বিজ্ঞান ও প্রযুক্তি', ballot: 1 }, { name: 'আবিদ হাসান', post: 'সহকারী সম্পাদক, বিজ্ঞান ও প্রযুক্তি', ballot: 2 }, { name: 'এফ. এম. যুবায়ের রহমান', post: 'সহকারী সম্পাদক, বিজ্ঞান ও প্রযুক্তি', ballot: 3 }, { name: 'মোঃ শরিফুল ইসলাম', post: 'সহকারী সম্পাদক, বিজ্ঞান ও প্রযুক্তি', ballot: 4 }, { name: 'রিচার্স চাকমা', post: 'সহকারী সম্পাদক, বিজ্ঞান ও প্রযুক্তি', ballot: 5 }, { name: 'মুজাহিদুল ইসলাম সাঈম', post: 'সহকারী সম্পাদক, বিজ্ঞান ও প্রযুক্তি', ballot: 6 }, { name: 'মোঃ নাঈমুল ইসলাম নাঈম', post: 'সহকারী সম্পাদক, বিজ্ঞান ও প্রযুক্তি', ballot: 7 },
+                    // সম্পাদক, বিতর্ক ও সাহিত্য বিষয়ক
+                    { name: 'ইমরান মিয়া লস্কর', post: 'সম্পাদক, বিতর্ক ও সাহিত্য বিষয়ক', ballot: 1 }, { name: 'আশরাফুল ইসলাম সন্ধি', post: 'সম্পাদক, বিতর্ক ও সাহিত্য বিষয়ক', ballot: 2 }, { name: 'গোপাল রায়', post: 'সম্পাদক, বিতর্ক ও সাহিত্য বিষয়ক', ballot: 3 }, { name: 'মোঃ মামুনুজ্জামান স্নিগ্ধ', post: 'সম্পাদক, বিতর্ক ও সাহিত্য বিষয়ক', ballot: 4 }, { name: 'মাসুম বিল্লাহ', post: 'সম্পাদক, বিতর্ক ও সাহিত্য বিষয়ক', ballot: 5 }, { name: 'মোঃ জোবায়ের হোসেন জিহাদ', post: 'সম্পাদক, বিতর্ক ও সাহিত্য বিষয়ক', ballot: 6 },
+                    // সহকারী সম্পাদক, বিতর্ক ও সাহিত্য বিষয়ক
+                    { name: 'মোঃ নাজমুল ইসলাম', post: 'সহকারী সম্পাদক, বিতর্ক ও সাহিত্য বিষয়ক', ballot: 1 }, { name: 'মোঃ আররাফি সিরাজী', post: 'সহকারী সম্পাদক, বিতর্ক ও সাহিত্য বিষয়ক', ballot: 2 }, { name: 'মোঃ নয়ন হোসেন', post: 'সহকারী সম্পাদক, বিতর্ক ও সাহিত্য বিষয়ক', ballot: 3 }, { name: 'আরিয়ান আহমদ', post: 'সহকারী সম্পাদক, বিতর্ক ও সাহিত্য বিষয়ক', ballot: 4 }, { name: 'মোঃ সাহাদাত হোসাইন', post: 'সহকারী সম্পাদক, বিতর্ক ও সাহিত্য বিষয়ক', ballot: 5 }, { name: 'মোঃ মেহেদী হাসান', post: 'সহকারী সম্পাদক, বিতর্ক ও সাহিত্য বিষয়ক', ballot: 6 }, { name: 'জিসান বাবু', post: 'সহকারী সম্পাদক, বিতর্ক ও সাহিত্য বিষয়ক', ballot: 7 }, { name: 'আবু সালেহ মোহাম্মদ সাফিন', post: 'সহকারী সম্পাদক, বিতর্ক ও সাহিত্য বিষয়ক', ballot: 8 },
+                    // সম্পাদক, পরিবেশ ও সমাজকল্যাণ
+                    { name: 'আব্দুল্লাহ আল মাসুদ', post: 'সম্পাদক, পরিবেশ ও সমাজকল্যাণ', ballot: 1 }, { name: 'মোঃ আহসান হাবিব', post: 'সম্পাদক, পরিবেশ ও সমাজকল্যাণ', ballot: 2 }, { name: 'মোঃ তাহছিন আহাম্মেদ', post: 'সম্পাদক, পরিবেশ ও সমাজকল্যাণ', ballot: 3 }, { name: 'মোঃ আতাউল্লাহ', post: 'সম্পাদক, পরিবেশ ও সমাজকল্যাণ', ballot: 4 }, { name: 'মোহাম্মদ গোলাম মোস্তফা', post: 'সম্পাদক, পরিবেশ ও সমাজকল্যাণ', ballot: 5 }, { name: 'আজমাইন আতিক', post: 'সম্পাদক, পরিবেশ ও সমাজকল্যাণ', ballot: 6 }, { name: 'মোঃ আবু রায়হান জনি', post: 'সম্পাদক, পরিবেশ ও সমাজকল্যাণ', ballot: 7 }, { name: 'সামিত বিন রহমান', post: 'সম্পাদক, পরিবেশ ও সমাজকল্যাণ', ballot: 8 }, { name: 'মাহির ফরসাল সৌরভ', post: 'সম্পাদক, পরিবেশ ও সমাজকল্যাণ', ballot: 9 }, { name: 'মোঃ আর-রাফি (রাফি)', post: 'সম্পাদক, পরিবেশ ও সমাজকল্যাণ', ballot: 10 }, { name: 'মো. আরিফ মিয়া', post: 'সম্পাদক, পরিবেশ ও সমাজকল্যাণ', ballot: 11 }, { name: 'উজ্জ্বল বাবু তঞ্চঙ্গ্যা', post: 'সম্পাদক, পরিবেশ ও সমাজকল্যাণ', ballot: 12 },
+                    // সহকারী সম্পাদক, পরিবেশ ও সমাজকল্যাণ
+                    { name: 'আশিকুর রহমান', post: 'সহকারী সম্পাদক, পরিবেশ ও সমাজকল্যাণ', ballot: 1 }, { name: 'এইচ. এম. ফৌজুল কবীর রাইয়ান', post: 'সহকারী সম্পাদক, পরিবেশ ও সমাজকল্যাণ', ballot: 2 }, { name: 'এস. এম. রিজন', post: 'সহকারী সম্পাদক, পরিবেশ ও সমাজকল্যাণ', ballot: 3 }, { name: 'নাঈম হোসেন', post: 'সহকারী সম্পাদক, পরিবেশ ও সমাজকল্যাণ', ballot: 4 }, { name: 'মো. সৌরভ মিয়া', post: 'সহকারী সম্পাদক, পরিবেশ ও সমাজকল্যাণ', ballot: 5 }, { name: 'মোছা. ঈশিতা পারভীন তিথি', post: 'সহকারী সম্পাদক, পরিবেশ ও সমাজকল্যাণ', ballot: 6 }, { name: 'শরিফুল ইসলাম', post: 'সহকারী সম্পাদক, পরিবেশ ও সমাজকল্যাণ', ballot: 7 }, { name: 'তাইফিকুল ইসলাম (রমজান)', post: 'সহকারী সম্পাদক, পরিবেশ ও সমাজকল্যাণ', ballot: 8 }, { name: 'মাসুমা ইসরাত মুমু', post: 'সহকারী সম্পাদক, পরিবেশ ও সমাজকল্যাণ', ballot: 9 }, { name: 'মোঃ নাছিম উদ্দিন', post: 'সহকারী সম্পাদক, পরিবেশ ও সমাজকল্যাণ', ballot: 10 }, { name: 'কুঞ্জশ্রী রায় সুলগ্ন (শুভ)', post: 'সহকারী সম্পাদক, পরিবেশ ও সমাজকল্যাণ', ballot: 11 }, { name: 'শামীন ত্রিপুরা', post: 'সহকারী সম্পাদক, পরিবেশ ও সমাজকল্যাণ', ballot: 12 }, { name: 'শাহীন আলম', post: 'সহকারী সম্পাদক, পরিবেশ ও সমাজকল্যাণ', ballot: 13 }, { name: 'বিজয় মার্ডী', post: 'সহকারী সম্পাদক, পরিবেশ ও সমাজকল্যাণ', ballot: 14 }, { name: 'সাকিব আল-হাসান', post: 'সহকারী সম্পাদক, পরিবেশ ও সমাজকল্যাণ', ballot: 15 }, { name: 'আখতার হোসেন', post: 'সহকারী সম্পাদক, পরিবেশ ও সমাজকল্যাণ', ballot: 16 },
+                    // নির্বাহী সদস্য
+                    { name: 'মো. জুনায়েদ', post: 'নির্বাহী সদস্য', ballot: 1 }, { name: 'ইয়াছিন আরাফাত আরমান', post: 'নির্বাহী সদস্য', ballot: 2 }, { name: 'তামান্না আক্তার', post: 'নির্বাহী সদস্য', ballot: 3 }, { name: 'নাজমুল হক (আশিক)', post: 'নির্বাহী সদস্য', ballot: 4 }, { name: 'মো. অপু শাজী', post: 'নির্বাহী সদস্য', ballot: 5 }, { name: 'এ. কে. এম. মাহবুব মোর্শেদ', post: 'নির্বাহী সদস্য', ballot: 6 }, { name: 'তানভীর সরকার', post: 'নির্বাহী সদস্য', ballot: 7 }, { name: 'মো. মাহফুজ ইসলাম নয়ন', post: 'নির্বাহী সদস্য', ballot: 8 }, { name: 'মো. আব্দুল হামিদ', post: 'নির্বাহী সদস্য', ballot: 9 }, { name: 'মো. রাকিবুল ইসলাম', post: 'নির্বাহী সদস্য', ballot: 10 }, { name: 'মো. মিনারুল ইসলাম', post: 'নির্বাহী সদস্য', ballot: 11 }, { name: 'মো. স্বাধীন খন্দকার', post: 'নির্বাহী সদস্য', ballot: 12 }, { name: 'মো. আহসানুল ইসলাম শাওন', post: 'নির্বাহী সদস্য', ballot: 13 }, { name: 'সজীব হোসেন', post: 'নির্বাহী সদস্য', ballot: 14 }, { name: 'মো. আবু নাঈম', post: 'নির্বাহী সদস্য', ballot: 15 }, { name: 'মো. সাজ্জাদ শেখ', post: 'নির্বাহী সদস্য', ballot: 16 }, { name: 'সাজ্জাদ হুসাইন', post: 'নির্বাহী সদস্য', ballot: 17 }, { name: 'ইসতেহাদ সাফিন', post: 'নির্বাহী সদস্য', ballot: 18 }, { name: 'মো. হাবিবুর রহমান', post: 'নির্বাহী সদস্য', ballot: 19 }, { name: 'আবু ইয়াকুব', post: 'নির্বাহী সদস্য', ballot: 20 }, { name: 'হাবিব হিমেল', post: 'নির্বাহী সদস্য', ballot: 21 }, { name: 'পাইঅংপ্রু মারমা', post: 'নির্বাহী সদস্য', ballot: 22 }, { name: 'মো. শাহরিয়ার ফয়সাল', post: 'নির্বাহী সদস্য', ballot: 23 }, { name: 'সাঈদ হাসান ইবনে রুহুল', post: 'নির্বাহী সদস্য', ballot: 24 }, { name: 'মো. আব্দুল মুহিত মুছান্না', post: 'নির্বাহী সদস্য', ballot: 25 }, { name: 'ইবরাহীম খলিল', post: 'নির্বাহী সদস্য', ballot: 26 }, { name: 'মো. ফেরদাউস শরীফ', post: 'নির্বাহী সদস্য', ballot: 27 }, { name: 'ওয়াজিদ শিশির', post: 'নির্বাহী সদস্য', ballot: 28 }, { name: 'মো. ইমাম হোসেন', post: 'নির্বাহী সদস্য', ballot: 29 }, { name: 'শাকিব রহমান', post: 'নির্বাহী সদস্য', ballot: 30 }, { name: 'মো. আশরাফুল ইসলাম', post: 'নির্বাহী সদস্য', ballot: 31 }, { name: 'মো. আল আমিন মিয়া', post: 'নির্বাহী সদস্য', ballot: 32 }, { name: 'মো. আরিফুল ইসলাম', post: 'নির্বাহী সদস্য', ballot: 33 }, { name: 'ইয়াছিন মিয়া', post: 'নির্বাহী সদস্য', ballot: 34 }, { name: 'মো. আহমেদ ইমতিয়াজ সৈকত', post: 'নির্বাহী সদস্য', ballot: 35 }, { name: 'আব্দুল্লাহ আল মুয়াজ', post: 'নির্বাহী সদস্য', ballot: 36 }, { name: 'এ. বি. এম. খালেদ', post: 'নির্বাহী সদস্য', ballot: 37 }, { name: 'মো. শাহীন সিকদার', post: 'নির্বাহী সদস্য', ballot: 38 }, { name: 'মো. জাফর আহম্মদ', post: 'নির্বাহী সদস্য', ballot: 39 }, { name: 'আসিফুর রহমান', post: 'নির্বাহী সদস্য', ballot: 40 }, { name: 'এস. এম. হাফিজুল ইসলাম', post: 'নির্বাহী সদস্য', ballot: 41 }, { name: 'আব্দুল্লাহ মুনাওয়ার সিফাত ভূঁঞা', post: 'নির্বাহী সদস্য', ballot: 42 }, { name: 'মো. রেদওয়ান-উল ইসলাম', post: 'নির্বাহী সদস্য', ballot: 43 }, { name: 'মো. দ্বীপ মাহবুব', post: 'নির্বাহী সদস্য', ballot: 44 }, { name: 'আব্দুল মমিন', post: 'নির্বাহী সদস্য', ballot: 45 }, { name: 'সুজন চন্দ্র', post: 'নির্বাহী সদস্য', ballot: 46 }, { name: 'মো. ইমজিয়াউল হক কামালি', post: 'নির্বাহী সদস্য', ballot: 47 }, { name: 'আসাদ সাদিক রাফি', post: 'নির্বাহী সদস্য', ballot: 48 }, { name: 'মো. জুয়েল রানা', post: 'নির্বাহী সদস্য', ballot: 49 }, { name: 'মো. সাজিদ বিন সাইফ', post: 'নির্বাহী সদস্য', ballot: 50 }, { name: 'রাহুল আগরওয়ালা প্রভাত', post: 'নির্বাহী সদস্য', ballot: 51 }, { name: 'রাশেদুল ইসলাম', post: 'নির্বাহী সদস্য', ballot: 52 }, { name: 'মো. মাজেদুল ইসলাম সাগর', post: 'নির্বাহী সদস্য', ballot: 53 }, { name: 'মোহাম্মাদ সোলায়মান হাওলাদার', post: 'নির্বাহী সদস্য', ballot: 54 }, { name: 'মো. নুরউদ্দীন হুসাইন (মারুফ)', post: 'নির্বাহী সদস্য', ballot: 55 },
+                    // সিনেট
+                    { name: 'ডা. মোঃ জাকির হোসেন', post: 'সিনেট', ballot: 1 }, { name: 'নোমান ইমতিয়াজ', post: 'সিনেট', ballot: 2 }, { name: 'ইউষা জান্নাত সোহা', post: 'সিনেট', ballot: 3 }, { name: 'আফরিন জাহান', post: 'সিনেট', ballot: 4 }, { name: 'মোহম্মদ গোলাম মোস্তফা', post: 'সিনেট', ballot: 5 }, { name: 'মো. হাবিবুর রহমান', post: 'সিনেট', ballot: 6 }, { name: 'মীর কাদির', post: 'সিনেট', ballot: 7 }, { name: 'মেহেদী মারুফ', post: 'সিনেট', ballot: 8 }, { name: 'শওকত হুসাইন', post: 'সিনেট', ballot: 9 }, { name: 'মুহির', post: 'সিনেট', ballot: 10 }, { name: 'তানজিম হাসান প্রাঙ্গন', post: 'সিনেট', ballot: 11 }, { name: 'মোঃ আবীর হাসান (হিমেল)', post: 'সিনেট', ballot: 12 }, { name: 'রেনেসা রাত্রী', post: 'সিনেট', ballot: 13 }, { name: 'মো. আলিউল ইসলাম', post: 'সিনেট', ballot: 14 }, { name: 'ফাহিম মুনতাসির রাফিন', post: 'সিনেট', ballot: 15 }, { name: 'মোঃ মোস্তাকুর রহমান (জাহিদ)', post: 'সিনেট', ballot: 16 }, { name: 'তাহরিমা আকতার', post: 'সিনেট', ballot: 17 }, { name: 'মো. মানাজির আহসান', post: 'সিনেট', ballot: 18 }, { name: 'আল-শাহরিয়া শুভ', post: 'সিনেট', ballot: 19 }, { name: 'মাজহারুল ইসলাম', post: 'সিনেট', ballot: 20 }, { name: 'সামসাদ জাহান', post: 'সিনেট', ballot: 21 }, { name: 'মোঃ তাফহিদুল হোসেন', post: 'সিনেট', ballot: 22 }, { name: 'মোছাঃ জান্নাতুন নাঈম তুহিনা', post: 'সিনেট', ballot: 23 }, { name: 'আকিল বিন তালের', post: 'সিনেট', ballot: 24 }, { name: 'রমজানুল মোবারক', post: 'সিনেট', ballot: 25 }, { name: 'মোঃ মামুনুজ্জামান স্নিগ্ধ', post: 'সিনেট', ballot: 26 }, { name: 'ফাহিম রেজা', post: 'সিনেট', ballot: 27 }, { name: 'মো. আহসান হাবিব', post: 'সিনেট', ballot: 28 }, { name: 'ইনসান আলী', post: 'সিনেট', ballot: 29 }, { name: 'এস. এম. সালমান সাবিবর', post: 'সিনেট', ballot: 30 }, { name: 'মনির হোসেন মাহিন', post: 'সিনেট', ballot: 31 }, { name: 'এস. এম. তাহমিদ হাসান', post: 'সিনেট', ballot: 32 }, { name: 'মোঃ সিফাত সরকার', post: 'সিনেট', ballot: 33 }, { name: 'মোঃ কাউছার আহম্মেদ', post: 'সিনেট', ballot: 34 }, { name: 'মো. ফয়জুল ইসলাম (অমি)', post: 'সিনেট', ballot: 35 }, { name: 'সালাহউদ্দিন আম্মার', post: 'সিনেট', ballot: 36 }, { name: 'মো. হাসান শাহরিয়ার খন্দকার আলিফ', post: 'সিনেট', ballot: 37 }, { name: 'মোঃ আবু নাঈম', post: 'সিনেট', ballot: 38 }, { name: 'সাফিন আজমীর', post: 'সিনেট', ballot: 39 }, { name: 'ফুয়াদ রাতুল', post: 'সিনেট', ballot: 40 }, { name: 'তৌফিক আজমিম মাহমুদ (ফাহিম)', post: 'সিনেট', ballot: 41 }, { name: 'ইরফান তামিম', post: 'সিনেট', ballot: 42 }, { name: 'গোপাল রায়', post: 'সিনেট', ballot: 43 }, { name: 'রিদোয়ান হাসান', post: 'সিনেট', ballot: 44 }, { name: 'তাসীন খান', post: 'সিনেট', ballot: 45 }, { name: 'আসাদ সাদিক রাফি', post: 'সিনেট', ballot: 46 }, { name: 'মোঃ অনিক আহমেদ', post: 'সিনেট', ballot: 47 }, { name: 'সৈয়দ সাকিব', post: 'সিনেট', ballot: 48 }, { name: 'মো. আবুল কালাম আজাদ', post: 'সিনেট', ballot: 49 }, { name: 'আল শাহরিয়ার শুভ', post: 'সিনেট', ballot: 50 }, { name: 'পরমা পারমিতা', post: 'সিনেট', ballot: 51 }, { name: 'মেহেদী সজীব', post: 'সিনেট', ballot: 52 }, { name: 'মোঃ আব্দুল বারিক', post: 'সিনেট', ballot: 53 }, { name: 'মোঃ আশরাফুল ইসলাম নাঈম', post: 'সিনেট', ballot: 54 }, { name: 'মোঃ মুজাহিদ ইসলাম', post: 'সিনেট', ballot: 55 }, { name: 'মাহাইর ইসলাম', post: 'সিনেট', ballot: 56 }, { name: 'মোঃ মিল্লাত শেখ', post: 'সিনেট', ballot: 57 }, { name: 'রায়হান হোসেন', post: 'সিনেট', ballot: 58 },
+                ];
+
+                allCandidates = candidatesData.map((c) => ({ ...c, id: `${c.post}-${c.ballot}` }));
+            }
+            
+            // --- RENDERING FUNCTIONS ---
+            function renderCandidates(filter = '') {
+                candidatesList.innerHTML = '';
+                const lowercasedFilter = filter.toLowerCase();
+                const panelIds = new Set(panel.map(c => c ? c.id : null));
+
+                const filteredCandidates = allCandidates
+                    .filter(c => !panelIds.has(c.id))
+                    .filter(c => c.name.toLowerCase().includes(lowercasedFilter) || c.post.toLowerCase().includes(lowercasedFilter));
+
+                if (filteredCandidates.length === 0) {
+                    candidatesList.innerHTML = `<p class="text-slate-500 text-center py-4">No candidates found.</p>`;
+                    return;
+                }
+
+                const groupedCandidates = filteredCandidates.reduce((acc, candidate) => {
+                    const post = candidate.post;
+                    if (!acc[post]) {
+                        acc[post] = [];
+                    }
+                    acc[post].push(candidate);
+                    return acc;
+                }, {});
+
+                const postOrder = [
+                    'সহ-সভাপতি (ভিপি)', 'সাধারণ সম্পাদক (জিএস)', 'সহ-সাধারণ সম্পাদক (এজিএস)', 'সম্পাদক, ক্রীড়া ও খেলাধুলা', 'সহকারী সম্পাদক, ক্রীড়া ও খেলাধুলা', 'সম্পাদক, সংস্কৃতি বিষয়ক', 'সহকারী সম্পাদক, সংস্কৃতি বিষয়ক', 'সম্পাদক, মহিলা বিষয়ক', 'সহকারী সম্পাদক, মহিলা বিষয়ক', 'সম্পাদক, তথ্য ও গবেষণা', 'সহকারী সম্পাদক, তথ্য ও গবেষণা', 'সম্পাদক, মিডিয়া ও প্রকাশনা', 'সহকারী সম্পাদক, মিডিয়া ও প্রকাশনা', 'সম্পাদক, বিজ্ঞান ও প্রযুক্তি', 'সহকারী সম্পাদক, বিজ্ঞান ও প্রযুক্তি', 'সম্পাদক, বিতর্ক ও সাহিত্য বিষয়ক', 'সহকারী সম্পাদক, বিতর্ক ও সাহিত্য বিষয়ক', 'সম্পাদক, পরিবেশ ও সমাজকল্যাণ', 'সহকারী সম্পাদক, পরিবেশ ও সমাজকল্যাণ', 'নির্বাহী সদস্য', 'সিনেট'
+                ];
+
+                postOrder.forEach(post => {
+                    if (groupedCandidates[post]) {
+                        const postHeader = document.createElement('h3');
+                        postHeader.className = 'text-lg font-semibold text-cyan-400 mt-4 mb-2 sticky top-0 bg-gray-800 bg-opacity-50 py-1 z-10 backdrop-blur-sm';
+                        postHeader.textContent = post;
+                        candidatesList.appendChild(postHeader);
+
+                        groupedCandidates[post].forEach(candidate => {
+                            const card = document.createElement('div');
+                            card.className = 'candidate-card bg-gray-700 p-3 mb-3 rounded-lg border border-gray-600 flex justify-between items-center';
+                            card.draggable = true;
+                            card.dataset.candidateId = candidate.id;
+                            card.innerHTML = `
+                                <div class="flex-grow">
+                                    <span class="font-medium text-white">${candidate.name}</span>
+                                </div>
+                                <div class="ml-4 text-xs font-bold bg-gray-600 text-gray-300 rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">
+                                    ${candidate.ballot}
+                                </div>
+                            `;
+                            card.addEventListener('dragstart', handleDragStart);
+                            candidatesList.appendChild(card);
+                        });
+                    }
+                });
+            }
+
+            function renderPanelSlots() {
+                panelGrid.innerHTML = '';
+                let slotIndex = 0;
+
+                const postsToRender = [
+                    { title: 'সহ-সভাপতি (ভিপি)', count: 1 }, { title: 'সাধারণ সম্পাদক (জিএস)', count: 1 }, { title: 'সহ-সাধারণ সম্পাদক (এজিএস)', count: 1 },
+                    { title: 'সম্পাদক, ক্রীড়া ও খেলাধুলা', count: 1 }, { title: 'সহকারী সম্পাদক, ক্রীড়া ও খেলাধুলা', count: 1 }, { title: 'সম্পাদক, সংস্কৃতি বিষয়ক', count: 1 },
+                    { title: 'সহকারী সম্পাদক, সংস্কৃতি বিষয়ক', count: 1 }, { title: 'সম্পাদক, মহিলা বিষয়ক', count: 1 }, { title: 'সহকারী সম্পাদক, মহিলা বিষয়ক', count: 1 },
+                    { title: 'সম্পাদক, তথ্য ও গবেষণা', count: 1 }, { title: 'সহকারী সম্পাদক, তথ্য ও গবেষণা', count: 1 }, { title: 'সম্পাদক, মিডিয়া ও প্রকাশনা', count: 1 },
+                    { title: 'সহকারী সম্পাদক, মিডিয়া ও প্রকাশনা', count: 1 }, { title: 'সম্পাদক, বিজ্ঞান ও প্রযুক্তি', count: 1 }, { title: 'সহকারী সম্পাদক, বিজ্ঞান ও প্রযুক্তি', count: 1 },
+                    { title: 'সম্পাদক, বিতর্ক ও সাহিত্য বিষয়ক', count: 1 }, { title: 'সহকারী সম্পাদক, বিতর্ক ও সাহিত্য বিষয়ক', count: 1 }, { title: 'সম্পাদক, পরিবেশ ও সমাজকল্যাণ', count: 1 },
+                    { title: 'সহকারী সম্পাদক, পরিবেশ ও সমাজকল্যাণ', count: 1 }, { title: 'নির্বাহী সদস্য', count: 4 }, { title: 'সিনেট', count: 5 },
+                ];
+
+                postsToRender.forEach(postInfo => {
+                    const postHeader = document.createElement('h3');
+                    postHeader.className = 'text-xl font-semibold text-cyan-400 mt-6 mb-3 border-b-2 border-cyan-500 pb-2';
+                    postHeader.textContent = postInfo.title;
+                    panelGrid.appendChild(postHeader);
+
+                    const slotsContainer = document.createElement('div');
+                    slotsContainer.className = 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4';
+                    panelGrid.appendChild(slotsContainer);
+
+                    for (let i = 0; i < postInfo.count; i++) {
+                        const currentSlotIndex = slotIndex++;
+                        const slot = document.createElement('div');
+                        slot.className = 'panel-slot border-2 border-dashed border-gray-600 rounded-lg h-24 flex items-center justify-center flex-col text-center p-2';
+                        slot.dataset.slotIndex = currentSlotIndex;
+                        slot.dataset.post = postInfo.title;
+
+                        const candidate = panel[currentSlotIndex];
+                        if (candidate) {
+                            slot.classList.remove('border-dashed', 'border-gray-600', 'flex-col');
+                            slot.classList.add('bg-gray-700', 'border-gray-500', 'p-2', 'relative');
+                            slot.innerHTML = `
+                                <div class="absolute top-1 left-1 text-xs font-bold bg-gray-600 text-gray-300 rounded-full w-6 h-6 flex items-center justify-center">
+                                    ${candidate.ballot}
+                                </div>
+                                <span class="font-semibold text-white text-sm leading-tight text-center px-2 pt-4">${candidate.name}</span>
+                                <button class="remove-btn absolute -top-2 -right-2 bg-red-600 text-white rounded-full h-5 w-5 flex items-center justify-center text-xs font-bold leading-none hover:bg-red-500 transition-colors">&times;</button>
+                            `;
+                            slot.querySelector('.remove-btn').addEventListener('click', () => removeFromPanel(currentSlotIndex));
+                        } else {
+                            let placeholderText = postInfo.title;
+                             if(postInfo.count > 1) {
+                                if (postInfo.title === 'নির্বাহী সদস্য') placeholderText = `নির্বাহী সদস্য ${i + 1}`;
+                                else if (postInfo.title === 'সিনেট') placeholderText = `সিনেট ${i + 1}`;
+                            }
+                            slot.innerHTML = `
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-500 mb-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+                                </svg>
+                                <span class="text-gray-500 text-sm">${placeholderText}</span>`;
+                        }
+
+                        slot.addEventListener('dragover', handleDragOver);
+                        slot.addEventListener('dragenter', handleDragEnter);
+                        slot.addEventListener('dragleave', handleDragLeave);
+                        slot.addEventListener('drop', handleDrop);
+                        slotsContainer.appendChild(slot);
+                    }
+                });
+            }
+
+            function updatePanelCounter() {
+                const count = panel.filter(c => c !== null).length;
+                panelCounter.textContent = `${count} / ${PANEL_SIZE} Selected`;
+            }
+
+            // --- DRAG & DROP HANDLERS ---
+            function handleDragStart(e) {
+                e.dataTransfer.setData('text/plain', e.target.dataset.candidateId);
+                setTimeout(() => { e.target.classList.add('opacity-50'); }, 0);
+            }
+            
+            function handleDragOver(e) { e.preventDefault(); }
+            function handleDragEnter(e) {
+                e.preventDefault();
+                const target = e.target.closest('.panel-slot');
+                if (target) { target.classList.add('drag-over'); }
+            }
+            function handleDragLeave(e) {
+                const target = e.target.closest('.panel-slot');
+                if (target) { target.classList.remove('drag-over'); }
+            }
+
+            function handleDrop(e) {
+                e.preventDefault();
+                const slot = e.currentTarget;
+                slot.classList.remove('drag-over');
+
+                const candidateId = e.dataTransfer.getData('text/plain');
+                const slotIndex = parseInt(slot.dataset.slotIndex);
+                const requiredPost = slot.dataset.post;
+                
+                if (candidateId && !isNaN(slotIndex)) {
+                    const candidate = allCandidates.find(c => c.id === candidateId);
+
+                    if (candidate.post !== requiredPost) {
+                        slot.classList.add('border-red-500', 'shake');
+                        setTimeout(() => { slot.classList.remove('border-red-500', 'shake'); }, 500);
+                        renderCandidates(searchInput.value);
+                        return;
+                    }
+                    
+                    const existingPanelIndex = panel.findIndex(c => c && c.id === candidate.id);
+                    if (existingPanelIndex > -1) {
+                        panel[existingPanelIndex] = null;
+                    }
+
+                    panel[slotIndex] = candidate;
+
+                    renderPanelSlots();
+                    renderCandidates(searchInput.value);
+                    updatePanelCounter();
+                }
+            }
+
+            function removeFromPanel(slotIndex) {
+                 panel[slotIndex] = null;
+                 renderPanelSlots();
+                 renderCandidates(searchInput.value);
+                 updatePanelCounter();
+            }
+
+            searchInput.addEventListener('input', () => { renderCandidates(searchInput.value); });
+            
+            resetButton.addEventListener('click', () => {
+                panel = Array(PANEL_SIZE).fill(null);
+                renderPanelSlots();
+                renderCandidates();
+                updatePanelCounter();
+            });
+
+            // --- DOWNLOAD IMAGE LOGIC ---
+            downloadImageButton.addEventListener('click', () => {
+                const printablePanel = document.createElement('div');
+                printablePanel.style.position = 'absolute';
+                printablePanel.style.left = '-9999px';
+                printablePanel.style.width = '900px';
+                printablePanel.style.height = '1200px';
+                printablePanel.style.background = 'linear-gradient(to bottom right, #111827, #1e1b4b)';
+                printablePanel.style.color = 'white';
+                printablePanel.style.padding = '40px';
+                printablePanel.style.fontFamily = 'Inter, sans-serif';
+                
+                let imageHTML = '<h1 style="font-size: 36px; font-weight: bold; text-align: center; margin-bottom: 30px; color: #93c5fd;">Your Selected Panel</h1>';
+                imageHTML += '<div style="display: flex; flex-direction: column; flex-wrap: wrap; height: 1050px; align-content: space-between;">';
+
+                const postsToRender = [
+                    { title: 'সহ-সভাপতি (ভিপি)', count: 1 }, { title: 'সাধারণ সম্পাদক (জিএস)', count: 1 }, { title: 'সহ-সাধারণ সম্পাদক (এজিএস)', count: 1 },
+                    { title: 'সম্পাদক, ক্রীড়া ও খেলাধুলা', count: 1 }, { title: 'সহকারী সম্পাদক, ক্রীড়া ও খেলাধুলা', count: 1 }, { title: 'সম্পাদক, সংস্কৃতি বিষয়ক', count: 1 },
+                    { title: 'সহকারী সম্পাদক, সংস্কৃতি বিষয়ক', count: 1 }, { title: 'সম্পাদক, মহিলা বিষয়ক', count: 1 }, { title: 'সহকারী সম্পাদক, মহিলা বিষয়ক', count: 1 },
+                    { title: 'সম্পাদক, তথ্য ও গবেষণা', count: 1 }, { title: 'সহকারী সম্পাদক, তথ্য ও গবেষণা', count: 1 }, { title: 'সম্পাদক, মিডিয়া ও প্রকাশনা', count: 1 },
+                    { title: 'সহকারী সম্পাদক, মিডিয়া ও প্রকাশনা', count: 1 }, { title: 'সম্পাদক, বিজ্ঞান ও প্রযুক্তি', count: 1 }, { title: 'সহকারী সম্পাদক, বিজ্ঞান ও প্রযুক্তি', count: 1 },
+                    { title: 'সম্পাদক, বিতর্ক ও সাহিত্য বিষয়ক', count: 1 }, { title: 'সহকারী সম্পাদক, বিতর্ক ও সাহিত্য বিষয়ক', count: 1 }, { title: 'সম্পাদক, পরিবেশ ও সমাজকল্যাণ', count: 1 },
+                    { title: 'সহকারী সম্পাদক, পরিবেশ ও সমাজকল্যাণ', count: 1 }, { title: 'নির্বাহী সদস্য', count: 4 }, { title: 'সিনেট', count: 5 },
+                ];
+
+                let currentSlot = 0;
+                postsToRender.forEach(postInfo => {
+                    const postCandidates = panel.slice(currentSlot, currentSlot + postInfo.count).filter(c => c);
+                    
+                    if (postCandidates.length > 0) {
+                        let columnContent = '<div style="width: 32%; margin-bottom: 16px;">';
+                        columnContent += `<h2 style="font-size: 16px; font-weight: 600; margin-bottom: 8px; border-bottom: 1px solid #0ea5e9; padding-bottom: 4px; color: #67e8f9;">${postInfo.title}</h2>`;
+                        
+                        postCandidates.forEach(candidate => {
+                            columnContent += `
+                                <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255, 255, 255, 0.05); padding: 8px 10px; border-radius: 6px; margin-top: 8px;">
+                                    <span style="font-size: 13px; line-height: 1.2;">${candidate.name}</span>
+                                    <span style="font-size: 16px; font-weight: bold; background: #4b5563; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-left: 8px;">${candidate.ballot}</span>
+                                </div>
+                            `;
+                        });
+                        columnContent += '</div>';
+                        imageHTML += columnContent;
+                    }
+                    currentSlot += postInfo.count;
+                });
+
+                imageHTML += '</div>';
+                printablePanel.innerHTML = imageHTML;
+                
+                document.body.appendChild(printablePanel);
+
+                html2canvas(printablePanel, {
+                    scale: 2
+                }).then(canvas => {
+                    const link = document.createElement('a');
+                    link.download = 'my-election-panel.png';
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                    document.body.removeChild(printablePanel);
+                });
+            });
+
+            // --- START THE APP ---
+            initializeApp();
+        });
+    </script>
+</body>
+</html>
+
