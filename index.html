@@ -62,9 +62,9 @@
         <header class="text-center mb-8">
             <div class="flex justify-center items-center gap-4">
                 <img src="https://i.pinimg.com/1200x/c5/ac/f1/c5acf1f93a2a1e9f43956d0db1308c8c.jpg" alt="Logo" class="h-12 w-12 rounded-full">
-                <h1 class="text-3xl md:text-4xl font-bold text-white">RUCSU</h1>
+                <h1 class="text-3xl md:text-4xl font-bold text-white">Election Panel Builder</h1>
             </div>
-            <p class="text-slate-400 mt-2">Select candidates to build your perfect panel.</p>
+            <p class="text-slate-400 mt-4 max-w-2xl mx-auto">Easily build and visualize your perfect election panel. Drag and drop candidates to form your team, then download an image of your final selection.</p>
         </header>
 
         <!-- Main Content: Candidates and Panel -->
@@ -138,11 +138,14 @@
                 renderPanelSlots();
                 renderCandidates();
                 updatePanelCounter();
+                
+                panelGrid.addEventListener('dragover', handleDragOver);
+                panelGrid.addEventListener('drop', handleGeneralPanelDrop);
             }
 
             // --- DATA GENERATION ---
             function generateCandidates() {
-                const candidatesData = [
+               const candidatesData = [
                     // সহ-সভাপতি (ভিপি)
                     { name: 'সাগর আহমেদ মিয়া', post: 'সহ-সভাপতি (ভিপি)', ballot: 1 }, { name: 'মো. আঃ  নূর', post: 'সহ-সভাপতি (ভিপি)', ballot: 2 }, { name: 'অদ্রীব নাহা উৎস', post: 'সহ-সভাপতি (ভিপি)', ballot: 3 }, { name: 'মোস্তাকুর রহমান (জাহিদ)', post: 'সহ-সভাপতি (ভিপি)', ballot: 4 }, { name: 'শেখ নূর উদ্দীন আবীর', post: 'সহ-সভাপতি (ভিপি)', ballot: 5 }, { name: 'ফুয়াদ রাতুল', post: 'সহ-সভাপতি (ভিপি)', ballot: 6 }, { name: 'তাসিন খান', post: 'সহ-সভাপতি (ভিপি)', ballot: 7 }, { name: 'নোমান ইমতিয়াজ', post: 'সহ-সভাপতি (ভিপি)', ballot: 8 }, { name: 'মাসুদ কিবরিয়া', post: 'সহ-সভাপতি (ভিপি)', ballot: 9 }, { name: 'মো. আব্দুল বারিক', post: 'সহ-সভাপতি (ভিপি)', ballot: 10 }, { name: 'মেহেদী মারুফ', post: 'সহ-সভাপতি (ভিপি)', ballot: 11 }, { name: 'তাওহীদুল ইসলাম', post: 'সহ-সভাপতি (ভিপি)', ballot: 12 }, { name: 'মো. মেহেদী হাসান সুমন', post: 'সহ-সভাপতি (ভিপি)', ballot: 13 }, { name: 'মাহবুব আলম', post: 'সহ-সভাপতি (ভিপি)', ballot: 14 }, { name: 'মেহেদী সজীব', post: 'সহ-সভাপতি (ভিপি)', ballot: 15 }, { name: 'শাকিল মিয়া', post: 'সহ-সভাপতি (ভিপি)', ballot: 16 }, { name: 'মো. বিল্লাল হোসেন', post: 'সহ-সভাপতি (ভিপি)', ballot: 17 }, { name: 'মুহিব', post: 'সহ-সভাপতি (ভিপি)', ballot: 18 },
                     // সাধারণ সম্পাদক (জিএস)
@@ -186,6 +189,7 @@
                     // সিনেট
                     { name: 'ডা. মোঃ জাকির হোসেন', post: 'সিনেট', ballot: 1 }, { name: 'নোমান ইমতিয়াজ', post: 'সিনেট', ballot: 2 }, { name: 'ইউষা জান্নাত সোহা', post: 'সিনেট', ballot: 3 }, { name: 'আফরিন জাহান', post: 'সিনেট', ballot: 4 }, { name: 'মোহম্মদ গোলাম মোস্তফা', post: 'সিনেট', ballot: 5 }, { name: 'মো. হাবিবুর রহমান', post: 'সিনেট', ballot: 6 }, { name: 'মীর কাদির', post: 'সিনেট', ballot: 7 }, { name: 'মেহেদী মারুফ', post: 'সিনেট', ballot: 8 }, { name: 'শওকত হুসাইন', post: 'সিনেট', ballot: 9 }, { name: 'মুহির', post: 'সিনেট', ballot: 10 }, { name: 'তানজিম হাসান প্রাঙ্গন', post: 'সিনেট', ballot: 11 }, { name: 'মোঃ আবীর হাসান (হিমেল)', post: 'সিনেট', ballot: 12 }, { name: 'রেনেসা রাত্রী', post: 'সিনেট', ballot: 13 }, { name: 'মো. আলিউল ইসলাম', post: 'সিনেট', ballot: 14 }, { name: 'ফাহিম মুনতাসির রাফিন', post: 'সিনেট', ballot: 15 }, { name: 'মোঃ মোস্তাকুর রহমান (জাহিদ)', post: 'সিনেট', ballot: 16 }, { name: 'তাহরিমা আকতার', post: 'সিনেট', ballot: 17 }, { name: 'মো. মানাজির আহসান', post: 'সিনেট', ballot: 18 }, { name: 'আল-শাহরিয়া শুভ', post: 'সিনেট', ballot: 19 }, { name: 'মাজহারুল ইসলাম', post: 'সিনেট', ballot: 20 }, { name: 'সামসাদ জাহান', post: 'সিনেট', ballot: 21 }, { name: 'মোঃ তাফহিদুল হোসেন', post: 'সিনেট', ballot: 22 }, { name: 'মোছাঃ জান্নাতুন নাঈম তুহিনা', post: 'সিনেট', ballot: 23 }, { name: 'আকিল বিন তালের', post: 'সিনেট', ballot: 24 }, { name: 'রমজানুল মোবারক', post: 'সিনেট', ballot: 25 }, { name: 'মোঃ মামুনুজ্জামান স্নিগ্ধ', post: 'সিনেট', ballot: 26 }, { name: 'ফাহিম রেজা', post: 'সিনেট', ballot: 27 }, { name: 'মো. আহসান হাবিব', post: 'সিনেট', ballot: 28 }, { name: 'ইনসান আলী', post: 'সিনেট', ballot: 29 }, { name: 'এস. এম. সালমান সাবিবর', post: 'সিনেট', ballot: 30 }, { name: 'মনির হোসেন মাহিন', post: 'সিনেট', ballot: 31 }, { name: 'এস. এম. তাহমিদ হাসান', post: 'সিনেট', ballot: 32 }, { name: 'মোঃ সিফাত সরকার', post: 'সিনেট', ballot: 33 }, { name: 'মোঃ কাউছার আহম্মেদ', post: 'সিনেট', ballot: 34 }, { name: 'মো. ফয়জুল ইসলাম (অমি)', post: 'সিনেট', ballot: 35 }, { name: 'সালাহউদ্দিন আম্মার', post: 'সিনেট', ballot: 36 }, { name: 'মো. হাসান শাহরিয়ার খন্দকার আলিফ', post: 'সিনেট', ballot: 37 }, { name: 'মোঃ আবু নাঈম', post: 'সিনেট', ballot: 38 }, { name: 'সাফিন আজমীর', post: 'সিনেট', ballot: 39 }, { name: 'ফুয়াদ রাতুল', post: 'সিনেট', ballot: 40 }, { name: 'তৌফিক আজমিম মাহমুদ (ফাহিম)', post: 'সিনেট', ballot: 41 }, { name: 'ইরফান তামিম', post: 'সিনেট', ballot: 42 }, { name: 'গোপাল রায়', post: 'সিনেট', ballot: 43 }, { name: 'রিদোয়ান হাসান', post: 'সিনেট', ballot: 44 }, { name: 'তাসীন খান', post: 'সিনেট', ballot: 45 }, { name: 'আসাদ সাদিক রাফি', post: 'সিনেট', ballot: 46 }, { name: 'মোঃ অনিক আহমেদ', post: 'সিনেট', ballot: 47 }, { name: 'সৈয়দ সাকিব', post: 'সিনেট', ballot: 48 }, { name: 'মো. আবুল কালাম আজাদ', post: 'সিনেট', ballot: 49 }, { name: 'আল শাহরিয়ার শুভ', post: 'সিনেট', ballot: 50 }, { name: 'পরমা পারমিতা', post: 'সিনেট', ballot: 51 }, { name: 'মেহেদী সজীব', post: 'সিনেট', ballot: 52 }, { name: 'মোঃ আব্দুল বারিক', post: 'সিনেট', ballot: 53 }, { name: 'মোঃ আশরাফুল ইসলাম নাঈম', post: 'সিনেট', ballot: 54 }, { name: 'মোঃ মুজাহিদ ইসলাম', post: 'সিনেট', ballot: 55 }, { name: 'মাহাইর ইসলাম', post: 'সিনেট', ballot: 56 }, { name: 'মোঃ মিল্লাত শেখ', post: 'সিনেট', ballot: 57 }, { name: 'রায়হান হোসেন', post: 'সিনেট', ballot: 58 },
                 ];
+
 
                 allCandidates = candidatesData.map((c) => ({ ...c, id: `${c.post}-${c.ballot}` }));
             }
@@ -231,7 +235,12 @@
                             card.draggable = true;
                             card.dataset.candidateId = candidate.id;
                             card.innerHTML = `
-                                <div class="flex-grow">
+                                <button class="add-btn p-1 rounded-full text-gray-400 hover:bg-gray-600 hover:text-white transition-colors focus:outline-none focus:ring-2 focus:ring-sky-500">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                      <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
+                                    </svg>
+                                </button>
+                                <div class="flex-grow ml-3">
                                     <span class="font-medium text-white">${candidate.name}</span>
                                 </div>
                                 <div class="ml-4 text-xs font-bold bg-gray-600 text-gray-300 rounded-full w-8 h-8 flex items-center justify-center flex-shrink-0">
@@ -239,6 +248,7 @@
                                 </div>
                             `;
                             card.addEventListener('dragstart', handleDragStart);
+                            card.querySelector('.add-btn').addEventListener('click', handlePlusClick);
                             candidatesList.appendChild(card);
                         });
                     }
@@ -272,7 +282,7 @@
                     for (let i = 0; i < postInfo.count; i++) {
                         const currentSlotIndex = slotIndex++;
                         const slot = document.createElement('div');
-                        slot.className = 'panel-slot border-2 border-dashed border-gray-600 rounded-lg h-24 flex items-center justify-center flex-col text-center p-2';
+                        slot.className = 'panel-slot border-2 border-dashed border-gray-600 rounded-lg h-24 flex items-center justify-center flex-col text-center p-4';
                         slot.dataset.slotIndex = currentSlotIndex;
                         slot.dataset.post = postInfo.title;
 
@@ -333,35 +343,86 @@
             }
 
             function handleDrop(e) {
+                e.stopPropagation();
                 e.preventDefault();
                 const slot = e.currentTarget;
                 slot.classList.remove('drag-over');
 
                 const candidateId = e.dataTransfer.getData('text/plain');
                 const slotIndex = parseInt(slot.dataset.slotIndex);
-                const requiredPost = slot.dataset.post;
                 
                 if (candidateId && !isNaN(slotIndex)) {
                     const candidate = allCandidates.find(c => c.id === candidateId);
-
-                    if (candidate.post !== requiredPost) {
-                        slot.classList.add('border-red-500', 'shake');
-                        setTimeout(() => { slot.classList.remove('border-red-500', 'shake'); }, 500);
-                        renderCandidates(searchInput.value);
-                        return;
-                    }
-                    
-                    const existingPanelIndex = panel.findIndex(c => c && c.id === candidate.id);
-                    if (existingPanelIndex > -1) {
-                        panel[existingPanelIndex] = null;
-                    }
-
-                    panel[slotIndex] = candidate;
-
-                    renderPanelSlots();
-                    renderCandidates(searchInput.value);
-                    updatePanelCounter();
+                    addCandidateToSlot(candidate, slotIndex);
                 }
+            }
+            
+            function handleGeneralPanelDrop(e) {
+                e.preventDefault();
+                if (e.target.closest('.panel-slot')) return;
+                const candidateId = e.dataTransfer.getData('text/plain');
+                if (!candidateId) return;
+                const candidate = allCandidates.find(c => c.id === candidateId);
+                if (candidate) addCandidateToPanel(candidate);
+            }
+
+            function handlePlusClick(e) {
+                e.stopPropagation();
+                const card = e.currentTarget.closest('.candidate-card');
+                const candidateId = card.dataset.candidateId;
+                if (candidateId) {
+                    const candidate = allCandidates.find(c => c.id === candidateId);
+                    addCandidateToPanel(candidate);
+                }
+            }
+
+            function addCandidateToPanel(candidate) {
+                let targetSlotIndex = -1;
+                for (let i = 0; i < panelSlotsConfig.length; i++) {
+                    if (panelSlotsConfig[i].post === candidate.post && panel[i] === null) {
+                        targetSlotIndex = i;
+                        break;
+                    }
+                }
+                
+                if (targetSlotIndex !== -1) {
+                    addCandidateToSlot(candidate, targetSlotIndex);
+                } else {
+                    panelGrid.classList.add('shake');
+                    setTimeout(() => { panelGrid.classList.remove('shake'); }, 500);
+                    renderCandidates(searchInput.value);
+                }
+            }
+
+            function addCandidateToSlot(candidate, slotIndex) {
+                if (candidate.post !== panelSlotsConfig[slotIndex].post) {
+                    const slotElement = document.querySelector(`[data-slot-index='${slotIndex}']`);
+                    if(slotElement) {
+                        slotElement.classList.add('border-red-500', 'shake');
+                        setTimeout(() => { slotElement.classList.remove('border-red-500', 'shake'); }, 500);
+                    }
+                    renderCandidates(searchInput.value);
+                    return;
+                }
+                
+                const existingPanelIndex = panel.findIndex(c => c && c.id === candidate.id);
+                if (existingPanelIndex > -1) {
+                    panel[existingPanelIndex] = null;
+                }
+                
+                const isMultiVotePost = candidate.post !== 'নির্বাহী সদস্য' && candidate.post !== 'সিনেট';
+                if(isMultiVotePost) {
+                    for(let i = 0; i < panel.length; i++) {
+                        if(panelSlotsConfig[i].post === candidate.post) {
+                            panel[i] = null;
+                        }
+                    }
+                }
+
+                panel[slotIndex] = candidate;
+                renderPanelSlots();
+                renderCandidates(searchInput.value);
+                updatePanelCounter();
             }
 
             function removeFromPanel(slotIndex) {
